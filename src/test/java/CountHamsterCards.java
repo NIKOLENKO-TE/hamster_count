@@ -1,6 +1,5 @@
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.w3c.dom.ls.LSOutput;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -11,12 +10,13 @@ import java.util.List;
 import java.util.Locale;
 
 public class CountHamsterCards {
-  static String filePath = "src/test/resources/Hamster.xlsx";
+  static String filePath = "src/test/resources/Hamster.xlsx"; //Address of the file
   static double coinsBalance = 0;
   static final String RESET = "\033[0m";
   static final String RED = "\033[0;31m";
   static final String GREEN = "\033[0;32m";
   static final String YELLOW = "\033[0;33m";
+
   static class Card {
     String name;
     int value;
@@ -51,7 +51,7 @@ public class CountHamsterCards {
     printMostEfficientCombinationByBoost(cards);
   }
 
-  private static Row getCellsFromTable(Sheet sheet) {
+  private static void getCellsFromTable(Sheet sheet) {
     Row firstRow = sheet.getRow(0);
     if (firstRow != null) {
       Cell cellE1 = firstRow.getCell(4); // E1
@@ -59,7 +59,6 @@ public class CountHamsterCards {
         coinsBalance = cellE1.getNumericCellValue();
       }
     }
-    return firstRow;
   }
 
   private static void printSorted(List<Card> cards) {
@@ -78,7 +77,7 @@ public class CountHamsterCards {
       }
       if (row.getRowNum() > 0 && row.getCell(0) != null && row.getCell(0).getCellType() == CellType.STRING) {
         String name = row.getCell(0).getStringCellValue();
-        if (name.isEmpty() || name.trim().equals("") || name.contains("Cards name")) {
+        if (name.isEmpty() || name.trim().isEmpty() || name.contains("Cards name")) {
           continue; // Skip rows with empty names or containing "Cards name"
         }
         if (name.equals("PR&Team") || name.equals("Legal") || name.equals("SPECIALS")) {
@@ -193,12 +192,21 @@ public class CountHamsterCards {
         mostEfficientCombination.add(card);
       }
     }
-
+    mostEfficientCombination.sort((card1, card2) -> {
+      double efficiency1 = (double) card1.boost / sortedByEfficiency.get(0).boost * 100;
+      double efficiency2 = (double) card2.boost / sortedByEfficiency.get(0).boost * 100;
+      return Double.compare(efficiency2, efficiency1); // Reverse order for descending sort
+    });
     System.out.println(YELLOW + "///////////////////////////////////Card to buy by Most Efficient Combination/////////////////////////////////////////////" + RESET);
     int cardNumber = 0;
     NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
     for (Card card : mostEfficientCombination) {
       cardNumber++;
+      /*
+      The efficiency can be greater than 100% if the boost of the current card is greater than the boost of the best-performing card.
+      This can happen if the best-performing card was chosen based on the boost/value ratio, rather than just the boost.
+      In this case, a card with a lower boost but significantly lower value can be considered more efficient.
+       */
       double efficiencyPercentage = (double) card.boost / sortedByEfficiency.get(0).boost * 100;
       String formattedValue = numberFormat.format(card.value);
       String formattedBoost = numberFormat.format(card.boost);
