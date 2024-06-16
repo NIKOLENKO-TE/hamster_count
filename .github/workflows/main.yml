@@ -27,7 +27,13 @@ jobs:
 
       - name: Generate HTML
         run: java -cp build/classes/java/main CountHamsterCards
-
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            build/reports/tests/test/
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
