@@ -11,6 +11,7 @@ repositories {
 
 dependencies {
     implementation group: 'org.apache.poi', name: 'poi', version: '5.2.5'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.8.2'
     implementation group: 'com.opencsv', name: 'opencsv', version: '5.9'
 }
 
