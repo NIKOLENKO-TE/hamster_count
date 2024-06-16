@@ -1,9 +1,14 @@
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class CountHamsterCards {
   static String filePath = "src/test/resources/Hamster.csv"; //Address of the file
@@ -12,6 +17,10 @@ public class CountHamsterCards {
   static final String RED = "\033[0;31m";
   static final String GREEN = "\033[0;32m";
   static final String YELLOW = "\033[0;33m";
+  static final String BLUE = "\033[0;34m";
+  static final String PURPLE = "\033[0;35m";
+  static final String CYAN = "\033[0;36m";
+  static final String WHITE = "\033[0;37m";
 
   static class Card {
     String name;
@@ -25,229 +34,39 @@ public class CountHamsterCards {
     }
 
     double efficiency() {
-      if (value == 0) {
-        return 0; // or handle this case in a way that makes sense for your application
-      }
       return (double) boost / value;
     }
   }
 
   public static void main(String[] args) throws IOException {
-    //FileInputStream file = new FileInputStream(filePath);
-    //Workbook workbook = new XSSFWorkbook(file);
-    //Sheet sheet = workbook.getSheetAt(0);
-    List<Card> cards = new ArrayList<>();
-    //getCellsFromTable(sheet);
-    excludeNamesMarket(cards);
-    //printSorted(cards);
-    calculateEfficiencyPercentage(cards);
-    //workbook.close();
-    //file.close();
-    printMostEfficientByBoost(cards);
-    printMostEfficientCombinationByBoost(cards);
+    List<Card> cards = readCardsFromCSV();
     printMostEfficientCombinationByValue(cards);
+    saveResultsToCSV(cards);
+    generateHTML(cards);
   }
 
-  /*private static void getCellsFromTable(Sheet sheet) {
-    Row firstRow = sheet.getRow(0);
-    if (firstRow != null) {
-      Cell cellE1 = firstRow.getCell(4); // E1
-      if (cellE1 != null && cellE1.getCellType() == CellType.NUMERIC) {
-        coinsBalance = cellE1.getNumericCellValue();
-      }
-    }
-  }*/
-
-  private static void excludeNamesMarket(List<Card> cards) throws IOException {
-    // Read the CSV file
-    List<String[]> lines = new ArrayList<>();
-    try (java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(filePath))) {
+  private static List<Card> readCardsFromCSV() throws IOException {
+    List<Card> cards = new ArrayList<>();
+    try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
       String line;
       while ((line = reader.readLine()) != null) {
-        lines.add(line.split(";"));
-      }
-    }
-
-    // Process the lines
-    for (int i = 1; i < lines.size(); i++) { // Start from line 1 to skip the header
-      String[] parts = lines.get(i);
-      if (parts.length >= 3) {
-        String name = parts[0].trim();
-        if (name.isEmpty() || name.contains("Cards name")) {
-          continue; // Skip rows with empty names or containing "Cards name"
-        }
-        if (name.equals("PR&Team") || name.equals("Legal") || name.equals("SPECIALS")) {
-          continue; // Skip these specific names
-        }
-        int value = Integer.parseInt(parts[1].trim());
-        int boost = Integer.parseInt(parts[2].trim());
-        cards.add(new Card(name, value, boost));
-      }
-    }
-    // Get the coins balance
-    if (lines.size() > 0) {
-      String[] firstLine = lines.get(0);
-      if (firstLine.length >= 2) {
-        coinsBalance = Double.parseDouble(firstLine[1].trim());
-      }
-    }
-  }
-
-  private static void printSorted(List<Card> cards) {
-    cards.sort(Comparator.comparingDouble(Card::efficiency).reversed());
-    sortFirstTenEffiCard(cards);
-  }
-  /*private static void excludeNamesMarket(Sheet sheet, List<Card> cards) {
-    for (Row row : sheet) {
-      Cell firstCell = row.getCell(0);
-      if (firstCell != null && firstCell.getCellType() == CellType.STRING && "Coins balance:".equals(firstCell.getStringCellValue())) {
-        Cell cellB1 = row.getCell(1);
-        if (cellB1 != null && cellB1.getCellType() == CellType.NUMERIC) {
-          coinsBalance = cellB1.getNumericCellValue();
+        String[] parts = line.split(";");
+        if (parts.length >= 3) {
+          String name = parts[0].trim();
+          if (name.isEmpty() || name.contains("Cards name") || name.equals("PR&Team") || name.equals("Legal") || name.equals("SPECIALS")) {
+            continue;
+          }
+          int value = Integer.parseInt(parts[1].trim());
+          int boost = Integer.parseInt(parts[2].trim());
+          cards.add(new Card(name, value, boost));
+        } else if (parts.length >= 2 && parts[0].trim().equals("Coins ballance:")) {
+          coinsBalance = Double.parseDouble(parts[1].trim());
         }
       }
-      if (row.getRowNum() > 0 && row.getCell(0) != null && row.getCell(0).getCellType() == CellType.STRING) {
-        String name = row.getCell(0).getStringCellValue();
-        if (name.isEmpty() || name.trim().isEmpty() || name.contains("Cards name")) {
-          continue; // Skip rows with empty names or containing "Cards name"
-        }
-        if (name.equals("PR&Team") || name.equals("Legal") || name.equals("SPECIALS")) {
-          continue; // Skip these specific names
-        }
-        int value = row.getCell(1) != null && row.getCell(1).getCellType() == CellType.NUMERIC ? (int) row.getCell(1).getNumericCellValue() : 0;
-        int boost = row.getCell(2) != null && row.getCell(2).getCellType() == CellType.NUMERIC ? (int) row.getCell(2).getNumericCellValue() : 0;
-        cards.add(new Card(name, value, boost));
-      }
     }
-  }*/
-
-  private static void printCoinsBallance(double coinsBalance, String x) {
-    NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
-    String formattedBalance = numberFormat.format(coinsBalance);
-    System.out.println(x + formattedBalance);
+    return cards;
   }
-  private static void sortFirstTenEffiCard(List<Card> cards) {
-    //System.out.println("Top 30 cards by performance relative to [boost / price]");
-    int countEff = 0;
-    for (Card card : cards) {
-      if (countEff >= 30) {
-        break; // Exit the loop after 10 cards
-      }
-      countEff++;
-    }
-  }
-  private static void calculateEfficiencyPercentage(List<Card> cards) {
-    // Находим самую эффективную карту
-    Card mostEfficientCard = cards.get(0); // Первая карта после сортировки - самая эффективная
-    double maxEfficiency = mostEfficientCard.efficiency();
-    int cardNumber = 0;
-    // Вычисляем эффективность каждой карты относительно самой эффективной
-    for (Card card : cards) {
-      cardNumber++;
-      double efficiencyPercentage = (card.efficiency() / maxEfficiency) * 100;
-      NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
-      String formattedValue = numberFormat.format(card.value);
-      String formattedBoost = numberFormat.format(card.boost);
-      // Разделение имени на магазин и карточку
-      String[] nameParts = card.name.split(":");
-      String storeName = nameParts[0];
-      String cardName = nameParts.length > 1 ? nameParts[1].trim() : "";  // Удаляем лишние пробелы
 
-      // System.out.printf("%d.Store: [%s], Card: {%s}, value: [%s], boost: [%s], efficiency: [%.2f%%]\n", cardNumber, storeName, cardName, formattedValue, formattedBoost, efficiencyPercentage);
-
-      if (cardNumber >= 30) {
-        break; // Прерываем цикл после вывода нужного количества карт
-      }
-    }
-  }
-  private static void printMostEfficientByBoost(List<Card> cards) {
-    List<Card> sortedByBoost = new ArrayList<>(cards);
-    sortedByBoost.sort((c1, c2) -> c2.boost - c1.boost);
-    //System.out.println("Top 30 cards by efficiency relative to [boost] where the most effective is {boost} = 100%");
-    int cardNumber = 0;
-    int totalBoost = 0;
-    for (Card card : sortedByBoost) {
-      cardNumber++;
-      double efficiencyPercentage = (double) card.boost / sortedByBoost.get(0).boost * 100;
-      NumberFormat numberFormat = NumberFormat.getInstance(Locale.US);
-      String formattedValue = numberFormat.format(card.value);
-      String formattedBoost = numberFormat.format(card.boost);
-      String[] nameParts = card.name.split(":");
-      String storeName = nameParts[0];
-      String cardName = nameParts.length > 1 ? nameParts[1].trim() : "";
-      // System.out.printf("%d.Store: [%s], Card: {%s}, value: [%s], boost: [%s], efficiency: [%.2f%%]\n", cardNumber, storeName, cardName, formattedValue, formattedBoost, efficiencyPercentage);
-      if (cardNumber >= 30) {
-        break;
-      }
-    }
-    int remainingBalance = (int) coinsBalance;
-    System.out.println(YELLOW + "///////////////////////////////////Card to buy by Most Efficient Boost/////////////////////////////////////////////" + RESET);
-    int cardNumberNew = 0;
-    NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
-
-    for (Card card : sortedByBoost) {
-      if (remainingBalance >= card.value) {
-        remainingBalance -= card.value;
-        totalBoost += card.boost;
-        cardNumberNew++;
-        double efficiencyPercentage = (double) card.boost / sortedByBoost.get(0).boost * 100;
-        String formattedValue = numberFormat.format(card.value);
-        String formattedBoost = numberFormat.format(card.boost);
-        String[] nameParts = card.name.split(":");
-        String storeName = nameParts[0];
-        String cardName = nameParts.length > 1 ? nameParts[1].trim() : "";
-        System.out.printf("%d.Store: [%s], Card: {%s}, value: [%s], boost: [%s], efficiency: [%.2f%%]\n", cardNumberNew, storeName, cardName, formattedValue, formattedBoost, efficiencyPercentage);
-      }
-    }
-    String formattedRemainingBalance = numberFormat.format(remainingBalance);
-    System.out.println("Not enough money to buy any new card. \nRemaining balance: " + formattedRemainingBalance);
-    System.out.println(GREEN + "Total boost from the most efficient combination: [" + totalBoost + "]" + RESET);
-    printCoinsBallance(coinsBalance, "Actual coins balance: ");
-  }
-  private static void printMostEfficientCombinationByBoost(List<Card> cards) {
-    List<Card> sortedByEfficiency = new ArrayList<>(cards);
-    sortedByEfficiency.sort(Comparator.comparingDouble(Card::efficiency).reversed());
-
-    List<Card> mostEfficientCombination = new ArrayList<>();
-    int remainingBalance = (int) coinsBalance;
-    int totalBoost = 0;
-
-    for (Card card : sortedByEfficiency) {
-      if (remainingBalance >= card.value) {
-        remainingBalance -= card.value;
-        totalBoost += card.boost;
-        mostEfficientCombination.add(card);
-      }
-    }
-    mostEfficientCombination.sort((card1, card2) -> {
-      double efficiency1 = (double) card1.boost / sortedByEfficiency.get(0).boost * 100;
-      double efficiency2 = (double) card2.boost / sortedByEfficiency.get(0).boost * 100;
-      return Double.compare(efficiency2, efficiency1); // Reverse order for descending sort
-    });
-    System.out.println(YELLOW + "///////////////////////////////////Card to buy by Most Efficient Combination/////////////////////////////////////////////" + RESET);
-    int cardNumber = 0;
-    NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
-    for (Card card : mostEfficientCombination) {
-      cardNumber++;
-      /*
-      The efficiency can be greater than 100% if the boost of the current card is greater than the boost of the best-performing card.
-      This can happen if the best-performing card was chosen based on the boost/value ratio, rather than just the boost.
-      In this case, a card with a lower boost but significantly lower value can be considered more efficient.
-       */
-      double efficiencyPercentage = (double) card.boost / sortedByEfficiency.get(0).boost * 100;
-      String formattedValue = numberFormat.format(card.value);
-      String formattedBoost = numberFormat.format(card.boost);
-      String[] nameParts = card.name.split(":");
-      String storeName = nameParts[0];
-      String cardName = nameParts.length > 1 ? nameParts[1].trim() : "";
-      System.out.printf("%d.Store: [%s], Card: {%s}, value: [%s], boost: [%s], efficiency: [%.2f%%]\n", cardNumber, storeName, cardName, formattedValue, formattedBoost, efficiencyPercentage);
-    }
-
-    String formattedRemainingBalance = numberFormat.format(remainingBalance);
-    System.out.println("Not enough money to buy any new card. \nRemaining balance: " + formattedRemainingBalance);
-    System.out.println(RED + "Total boost from the most efficient combination: [" + totalBoost + "]" + RESET);
-    printCoinsBallance(coinsBalance, "Actual coins balance: ");
-  }
   private static void printMostEfficientCombinationByValue(List<Card> cards) {
     List<Card> sortedByEfficiency = new ArrayList<>(cards);
     sortedByEfficiency.sort(Comparator.comparingDouble(Card::efficiency).reversed());
@@ -256,9 +75,69 @@ public class CountHamsterCards {
     List<Card> cardsToRemove = new ArrayList<>();
     int remainingBalance = (int) coinsBalance;
     int totalBoost = 0;
+    NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
 
-    // Находим самую эффективную карту
-    Card mostEfficientCard = sortedByEfficiency.get(0); // Первая карта после сортировки - самая эффективная
+    // Find the most efficient card
+    Card mostEfficientCard = sortedByEfficiency.get(0);
+    double maxEfficiency = mostEfficientCard.efficiency();
+
+    System.out.println(YELLOW + "///////////////////////////////////Card to buy by Most Efficient Combination by Value/////////////////////////////////////////////" + RESET);
+    for (Card card : sortedByEfficiency) {
+      if (remainingBalance >= card.value) {
+        remainingBalance -= card.value;
+        totalBoost += card.boost;
+        mostEfficientCombination.add(card);
+        cardsToRemove.add(card);
+      }
+    }
+
+    sortedByEfficiency.removeAll(cardsToRemove);
+    mostEfficientCombination.sort(Comparator.comparingDouble(c -> (double) ((Card) c).boost / ((Card) c).value).reversed());
+    int cardNumber = 0;
+    Map<String, String> storeColors = new HashMap<>();
+    storeColors.put("Markets", YELLOW);
+    storeColors.put("PR&Team", GREEN);
+    storeColors.put("Legal", BLUE);
+    storeColors.put("SPECIALS", CYAN);
+
+    for (Card card : mostEfficientCombination) {
+      cardNumber++;
+      double efficiencyPercentage = (card.efficiency() / maxEfficiency) * 100;
+      String formattedValue = numberFormat.format(card.value);
+      String formattedBoost = numberFormat.format(card.boost);
+      String[] nameParts = card.name.split(":");
+      String storeName = nameParts[0];
+      String cardName = nameParts.length > 1 ? nameParts[1].trim() : "";
+      String color = storeColors.getOrDefault(storeName, WHITE); // Default to white if no color found
+      System.out.printf("%d.Store: [%s%s%s], Card: {%s%s%s}, value: [%s], boost: [%s], efficiency: [%.2f%%]\n", cardNumber, color, storeName, RESET, color, cardName, RESET, formattedValue.replace(",", "."), formattedBoost.replace(",", "."), efficiencyPercentage);
+    }
+
+    String formattedRemainingBalance = numberFormat.format(remainingBalance);
+    System.out.println("Not enough money to buy any new card. \nRemaining balance: " + formattedRemainingBalance);
+    NumberFormat numberFormatBoost = NumberFormat.getNumberInstance(Locale.US);
+    String formattedBalance = numberFormatBoost.format(totalBoost);
+    System.out.println(RED + "Total boost: [" + formattedBalance + "]" + RESET);
+    printCoinsBalance(coinsBalance);
+  }
+
+  private static void printCoinsBalance(double coinsBalance) {
+    NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+    String formattedBalance = numberFormat.format(coinsBalance);
+    System.out.println("Actual coins balance: " + formattedBalance);
+  }
+
+  private static void saveResultsToCSV(List<Card> cards) throws IOException {
+    List<Card> sortedByEfficiency = new ArrayList<>(cards);
+    sortedByEfficiency.sort(Comparator.comparingDouble(Card::efficiency).reversed());
+
+    List<Card> mostEfficientCombination = new ArrayList<>();
+    List<Card> cardsToRemove = new ArrayList<>();
+    int remainingBalance = (int) coinsBalance;
+    int totalBoost = 0;
+    NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+
+    // Find the most efficient card
+    Card mostEfficientCard = sortedByEfficiency.get(0);
     double maxEfficiency = mostEfficientCard.efficiency();
 
     for (Card card : sortedByEfficiency) {
@@ -271,30 +150,147 @@ public class CountHamsterCards {
     }
 
     sortedByEfficiency.removeAll(cardsToRemove);
+    mostEfficientCombination.sort(Comparator.comparingDouble(c -> (double) ((Card) c).boost / ((Card) c).value).reversed());
 
-    mostEfficientCombination.sort((card1, card2) -> {
-      double efficiency1 = (double) card1.boost / card1.value;
-      double efficiency2 = (double) card2.boost / card2.value;
-      return Double.compare(efficiency2, efficiency1); // Reverse order for descending sort
-    });
+    // Define the desired store order
+    String[] storeOrder = {"Markets", "PR&Team", "Legal", "SPECIALS"};
 
-    System.out.println(YELLOW + "///////////////////////////////////Card to buy by Most Efficient Combination by Value/////////////////////////////////////////////" + RESET);
-    int cardNumber = 0;
+    try (FileWriter writer = new FileWriter("src/test/resources/most_efficient_combination_by_value.csv")) {
+      writer.append("Store");
+      writer.append(",");
+      writer.append("Card");
+      writer.append(",");
+      writer.append("Value");
+      writer.append(",");
+      writer.append("Boost");
+      writer.append(",");
+      writer.append("Efficiency");
+      writer.append("\n");
+
+      for (String store : storeOrder) {
+        for (Card card : mostEfficientCombination) {
+          String[] nameParts = card.name.split(":");
+          String storeName = nameParts[0];
+          if (storeName.equals(store)) {
+            int cardNumber = mostEfficientCombination.indexOf(card) + 1;
+            double efficiencyPercentage = (card.efficiency() / maxEfficiency) * 100;
+            String formattedValue = numberFormat.format(card.value);
+            String formattedBoost = numberFormat.format(card.boost);
+            String cardName = nameParts.length > 1 ? nameParts[1].trim() : "";
+            writer.append(storeName);
+            writer.append(",");
+            writer.append(cardName);
+            writer.append(",");
+            writer.append(formattedValue.replace(",", "."));
+            writer.append(",");
+            writer.append(formattedBoost.replace(",", "."));
+            writer.append(",");
+            writer.append(String.format("%.2f%%", efficiencyPercentage).replace(",", ".")); // Replace comma in percentage
+            writer.append("\n");
+          }
+        }
+      }
+      // Add the remaining lines to the CSV file
+      writer.append("Remaining balance: ");
+      writer.append(",");
+      writer.append(numberFormat.format(remainingBalance).replace(",", "."));
+      writer.append("\n");
+      writer.append("Total boost: ");
+      writer.append(",");
+      writer.append(numberFormat.format(totalBoost).replace(",", ".")); // Format totalBoost
+      writer.append("\n");
+      writer.append("Actual balance: ");
+      writer.append(",");
+      writer.append(numberFormat.format(coinsBalance).replace(",", "."));
+    }
+  }
+
+  private static void generateHTML(List<Card> cards) throws IOException {
+    List<Card> sortedByEfficiency = new ArrayList<>(cards);
+    sortedByEfficiency.sort(Comparator.comparingDouble(Card::efficiency).reversed());
+
+    List<Card> mostEfficientCombination = new ArrayList<>();
+    List<Card> cardsToRemove = new ArrayList<>();
+    int remainingBalance = (int) coinsBalance;
+    int totalBoost = 0;
     NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
-    for (Card card : mostEfficientCombination) {
-      cardNumber++;
-      double efficiencyPercentage = (card.efficiency() / maxEfficiency) * 100;
-      String formattedValue = numberFormat.format(card.value);
-      String formattedBoost = numberFormat.format(card.boost);
-      String[] nameParts = card.name.split(":");
-      String storeName = nameParts[0];
-      String cardName = nameParts.length > 1 ? nameParts[1].trim() : "";
-      System.out.printf("%d.Store: [%s], Card: {%s}, value: [%s], boost: [%s], efficiency: [%.2f%%]\n", cardNumber, storeName, cardName, formattedValue, formattedBoost, efficiencyPercentage);
+
+    // Find the most efficient card
+    Card mostEfficientCard = sortedByEfficiency.get(0);
+    double maxEfficiency = mostEfficientCard.efficiency();
+
+    for (Card card : sortedByEfficiency) {
+      if (remainingBalance >= card.value) {
+        remainingBalance -= card.value;
+        totalBoost += card.boost;
+        mostEfficientCombination.add(card);
+        cardsToRemove.add(card);
+      }
     }
 
-    String formattedRemainingBalance = numberFormat.format(remainingBalance);
-    System.out.println("Not enough money to buy any new card. \nRemaining balance: " + formattedRemainingBalance);
-    System.out.println(RED + "Total boost from the most efficient combination: [" + totalBoost + "]" + RESET);
-    printCoinsBallance(coinsBalance, "Actual coins balance: ");
+    sortedByEfficiency.removeAll(cardsToRemove);
+    mostEfficientCombination.sort(Comparator.comparingDouble(c -> (double) ((Card) c).boost / ((Card) c).value).reversed());
+
+    // Define the desired store order
+    String[] storeOrder = {"Markets", "PR&Team", "Legal", "SPECIALS"};
+
+    try (FileWriter writer = new FileWriter("src/test/resources/index.html")) {
+      writer.append("<!DOCTYPE html>\n");
+      writer.append("<html>\n");
+      writer.append("<head>\n");
+      writer.append("<title>Hamster Card Analysis</title>\n");
+      writer.append("<style>\n");
+      writer.append("table {\n");
+      writer.append("  border-collapse: collapse;\n");
+      writer.append("  width: 100%;\n");
+      writer.append("}\n");
+      writer.append("th, td {\n");
+      writer.append("  text-align: left;\n");
+      writer.append("  padding: 8px;\n");
+      writer.append("  border: 1px solid black;\n");
+      writer.append("}\n");
+      writer.append("th {\n");
+      writer.append("  background-color: #f2f2f2;\n");
+      writer.append("}\n");
+      writer.append("</style>\n");
+      writer.append("</head>\n");
+      writer.append("<body>\n");
+      writer.append("<h1>Hamster Card Analysis</h1>\n");
+      writer.append("<table>\n");
+      writer.append("  <tr>\n");
+      writer.append("    <th>Store</th>\n");
+      writer.append("    <th>Card</th>\n");
+      writer.append("    <th>Value</th>\n");
+      writer.append("    <th>Boost</th>\n");
+      writer.append("    <th>Efficiency</th>\n");
+      writer.append("  </tr>\n");
+
+      for (String store : storeOrder) {
+        for (Card card : mostEfficientCombination) {
+          String[] nameParts = card.name.split(":");
+          String storeName = nameParts[0];
+          if (storeName.equals(store)) {
+            int cardNumber = mostEfficientCombination.indexOf(card) + 1;
+            double efficiencyPercentage = (card.efficiency() / maxEfficiency) * 100;
+            String formattedValue = numberFormat.format(card.value);
+            String formattedBoost = numberFormat.format(card.boost);
+            String cardName = nameParts.length > 1 ? nameParts[1].trim() : "";
+            writer.append("  <tr>\n");
+            writer.append("    <td>" + storeName + "</td>\n");
+            writer.append("    <td>" + cardName + "</td>\n");
+            writer.append("    <td>" + formattedValue.replace(",", ".") + "</td>\n");
+            writer.append("    <td>" + formattedBoost.replace(",", ".") + "</td>\n");
+            writer.append("    <td>" + String.format("%.2f%%", efficiencyPercentage).replace(",", ".") + "</td>\n");
+            writer.append("  </tr>\n");
+          }
+        }
+      }
+      writer.append("</table>\n");
+      writer.append("<p>Remaining balance: " + numberFormat.format(remainingBalance).replace(",", ".") + "</p>\n");
+      writer.append("<p>Total boost: " + numberFormat.format(totalBoost).replace(",", ".") + "</p>\n");
+      writer.append("<p>Actual balance: " + numberFormat.format(coinsBalance).replace(",", ".") + "</p>\n");
+      writer.append("</body>\n");
+      writer.append("</html>\n");
+    }
   }
 }
